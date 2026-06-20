@@ -1,0 +1,48 @@
+# Dependency directories
+**/node_modules/
+jspm_packages/
+web_packages/
+
+# Build outputs
+dist/
+build/
+out/
+FrontEnd/dist/
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# Local environment variables
+BackEnd/.env
+BackEnd/.env.local
+BackEnd/.env.development.local
+BackEnd/.env.test.local
+BackEnd/.env.production.local
+.env
+.env.local
+
+# IDEs and editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.project
+.classpath
+.settings/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Diagnostic database files (keep settings.json as it holds nickname variables configuration)
+BackEnd/data/users.json
+BackEnd/data/posts.json
+BackEnd/data/reactions.json
