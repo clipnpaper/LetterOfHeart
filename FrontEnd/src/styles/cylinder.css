@@ -84,20 +84,36 @@
   bottom: -32px;
   left: 50%;
   transform: translateX(-50%) scale(0.85);
-  background: rgba(15, 10, 30, 0.88);
-  color: #f3e8ff;
-  padding: 3px 9px;
-  border-radius: 8px;
-  font-size: 10px;
-  font-weight: 700;
+  display: flex;
+  gap: 6px;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  border: 1px solid rgba(167, 139, 250, 0.35);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
   font-family: 'Noto Sans KR', sans-serif;
   z-index: 10;
+}
+
+.cylinder-nickname-tag {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  color: #ffffff;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.cylinder-guild-tag {
+  background: rgba(15, 10, 30, 0.88);
+  color: #c4b5fd;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
 .cylinder-item:hover .cylinder-item-label {
@@ -123,7 +139,7 @@
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-.dark .cylinder-item-label {
+.dark .cylinder-guild-tag {
   background: rgba(10, 6, 20, 0.92);
   color: #f3e8ff;
   border-color: rgba(167, 139, 250, 0.4);

@@ -10,8 +10,11 @@ const adminImages = import.meta.glob<{ default: string }>('@/imports/adminProfil
 const adminList = Object.entries(adminImages).map(([path, module]) => {
   const fileName = path.split('/').pop() || '';
   const name = fileName.replace(/\.[^/.]+$/, '');
+  const [nickname, guildName] = name.includes('_') ? name.split('_') : [name, ''];
   return {
     name,
+    nickname,
+    guildName,
     src: module.default,
   };
 });
@@ -494,7 +497,10 @@ function AdminCylinder({ dark }: { dark: boolean }) {
                   <img src={item.src} alt={item.name} className="cylinder-item-img" />
                 </div>
                 <div className="cylinder-item-label">
-                  {item.name}
+                  <span className="cylinder-nickname-tag">{item.nickname}</span>
+                  {item.guildName && (
+                    <span className="cylinder-guild-tag">{item.guildName}</span>
+                  )}
                 </div>
               </div>
             );
