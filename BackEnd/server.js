@@ -104,10 +104,17 @@ app.put('/api/admin/users/:uuid/nickname', (req, res) => {
   // Sync author nickname in all posts written by this user
   const posts = readPosts();
   const updatedPosts = posts.map(p => {
+    let updated = { ...p };
+    let changed = false;
     if (p.authorUuid === uuid) {
-      return { ...p, author: nickname.trim() };
+      updated.author = nickname.trim();
+      changed = true;
     }
-    return p;
+    if (p.adminReplyAuthorUuid === uuid) {
+      updated.adminReplyAuthor = nickname.trim();
+      changed = true;
+    }
+    return changed ? updated : p;
   });
   writePosts(updatedPosts);
 
@@ -212,13 +219,30 @@ app.put('/api/posts/:id/view', (req, res) => {
 
 app.put('/api/posts/:id/admin-reply', (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { adminReply } = req.body;
+  const { adminReply, userUuid } = req.body;
+  
+  const users = readUsers();
+  const user = users[userUuid];
+  if (!user || user.role !== 'admin') {
+    return res.status(403).json({ error: '관리자 태그를 받지 못하였습니다. 방장님께 여쭤보세요.' });
+  }
+
   const posts = readPosts();
   const idx = posts.findIndex(p => p.id === id);
   if (idx === -1) {
     return res.status(404).json({ error: 'Post not found.' });
   }
-  posts[idx].adminReply = adminReply ? adminReply.trim() : undefined;
+  
+  if (adminReply !== undefined && adminReply !== null) {
+    posts[idx].adminReply = adminReply.trim();
+    posts[idx].adminReplyAuthorUuid = userUuid;
+    posts[idx].adminReplyAuthor = user.nickname;
+  } else {
+    posts[idx].adminReply = undefined;
+    posts[idx].adminReplyAuthorUuid = undefined;
+    posts[idx].adminReplyAuthor = undefined;
+  }
+  
   writePosts(posts);
   res.json(posts[idx]);
 });

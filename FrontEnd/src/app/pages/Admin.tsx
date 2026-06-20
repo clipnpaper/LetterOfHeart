@@ -39,6 +39,8 @@ type Post = {
   isNotion?: boolean;
   deleted?: boolean;
   adminReply?: string;
+  adminReplyAuthorUuid?: string;
+  adminReplyAuthor?: string;
 };
 
 type UserInfo = {
@@ -61,8 +63,9 @@ type Reaction = {
 
 // ─── Main Admin Component ───────────────────────────────────────────
 export function Admin() {
-  const { dark } = useOutletContext<{ dark: boolean }>();
+  const { dark, userUuid, nickname, role } = useOutletContext<{ dark: boolean; userUuid: string; nickname: string; role: string }>();
   const navigate = useNavigate();
+  const isAdminUser = role === "admin";
 
   // Authentication State
   const [authorized, setAuthorized] = useState(false);
@@ -182,14 +185,16 @@ export function Admin() {
   function handleSaveAdminReply(postId: number, week: number) {
     fetchApi(`/posts/${postId}/admin-reply`, {
       method: "PUT",
-      body: JSON.stringify({ adminReply: adminReplyText.trim() })
+      body: JSON.stringify({ adminReply: adminReplyText.trim(), userUuid })
     })
       .then(() => {
         loadAllData();
         setEditingPostId(null);
         setAdminReplyText("");
       })
-      .catch(console.error);
+      .catch(err => {
+        alert(err.message || "답변 저장에 실패했습니다.");
+      });
   }
 
   // Reaction tab actions
@@ -699,7 +704,14 @@ export function Admin() {
                             {p.adminReply && editingPostId !== p.id && (
                               <div className="p-3 rounded-xl border flex justify-between items-start gap-2 bg-indigo-500/5" style={{ borderColor }}>
                                 <div className="text-xs">
-                                  <span className="font-extrabold text-[10px] text-indigo-400 block mb-1">🛡️ 관리자 답변</span>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-extrabold text-[10px] text-indigo-400">🛡️ 관리자 답변</span>
+                                    {p.adminReplyAuthor && (
+                                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-600 text-white font-bold">
+                                        ADMIN {p.adminReplyAuthor}
+                                      </span>
+                                    )}
+                                  </div>
                                   <p style={{ color: dark ? "#c4b5fd" : "#4c1d95" }}>{p.adminReply}</p>
                                 </div>
                                 <button
@@ -717,17 +729,27 @@ export function Admin() {
                             {editingPostId === p.id ? (
                               <div className="flex flex-col gap-2 mt-1">
                                 <textarea
-                                  placeholder="이 글에 등록할 공식 관리자 답변을 작성하세요..."
+                                  placeholder={
+                                    isAdminUser
+                                      ? "이 글에 등록할 공식 관리자 답변을 작성하세요..."
+                                      : "관리자 권한이 있는 계정만 작성 가능합니다."
+                                  }
                                   value={adminReplyText}
                                   onChange={(e) => setAdminReplyText(e.target.value)}
+                                  disabled={!isAdminUser}
                                   rows={2}
-                                  className="w-full p-2.5 rounded-xl text-xs focus:outline-none resize-none"
+                                  className="w-full p-2.5 rounded-xl text-xs focus:outline-none resize-none disabled:opacity-60"
                                   style={{
                                     background: dark ? "rgba(15,10,35,0.6)" : "#fff",
                                     border: `1px solid ${borderColor}`,
                                     color: dark ? "#e9d5ff" : "#4c1d95"
                                   }}
                                 />
+                                {!isAdminUser && (
+                                  <p className="text-[10px] text-rose-500 font-bold">
+                                    ⚠️ 현재 접속 중인 계정('{nickname}')은 관리자(role: admin)가 아닙니다.
+                                  </p>
+                                )}
                                 <div className="flex justify-end gap-2 text-xs">
                                   <button
                                     onClick={() => {
@@ -741,7 +763,8 @@ export function Admin() {
                                   </button>
                                   <button
                                     onClick={() => handleSaveAdminReply(p.id, p.week)}
-                                    className="px-4 py-1 bg-purple-600 text-white rounded font-bold"
+                                    disabled={!isAdminUser}
+                                    className="px-4 py-1 bg-purple-600 text-white rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     답변 저장
                                   </button>

@@ -97,3 +97,9 @@ npm run dev
 - `FrontEnd/dist/`: 빌드 압축 번들 제외
 - `BackEnd/.env`: 관리자 패스코드나 API 포트 번호 등 환경 변수 파일 유출 방지
 - `BackEnd/data/*.json`: 사용자 정보(`users.json`), 게시글 리스트(`posts.json`), 리액션 이력(`reactions.json`)과 같이 **동적으로 갱신되는 로컬 DB 파일** 업로드 방지 (단, 닉네임 변수 풀을 담고 있는 `settings.json`은 보존하여 기본값을 유지하도록 설정)
+
+# 비밀번호 관리
+
+- 관리자 비밀번호: "bolttaguneedmoney!"
+- 관리자 포털 주소: http://localhost:5173/admin
+- 부방장인 관리자의 아이디를 받을 경우, users.json의 해당 아이디의 role을 admin으로 수동으로 바꿔주시길 바랍니다. 또한 닉네임을 변경해주고 싶은 대상에게 닉네임을 바꿔줄 수 있습니다.

@@ -14,6 +14,7 @@ export function Root() {
 
   const [nickname, setNickname] = useState("");
   const [userUuid, setUserUuid] = useState("");
+  const [role, setRole] = useState("");
 
   useEffect(() => {
     const uuid = localStorage.getItem("LOH_USER_UUID");
@@ -34,6 +35,9 @@ export function Root() {
         if (res.nickname) {
           localStorage.setItem("LOH_USER_NICKNAME", res.nickname);
           setNickname(res.nickname);
+        }
+        if (res.role) {
+          setRole(res.role);
         }
       })
       .catch(console.error);
@@ -163,7 +167,7 @@ export function Root() {
 
       {/* Page content — offset for fixed nav */}
       <div className="pt-16">
-        <Outlet context={{ dark, nickname, userUuid }} />
+        <Outlet context={{ dark, nickname, userUuid, role }} />
       </div>
     </div>
   );

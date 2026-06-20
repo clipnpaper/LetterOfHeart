@@ -20,6 +20,7 @@ type Post = {
   isNotion?: boolean; // 개념글
   deleted?: boolean;
   adminReply?: string;
+  adminReplyAuthor?: string;
 };
 
 
@@ -396,7 +397,15 @@ function PostDetail({ post, dark, isArchived, activeWeek, onBack, onUpdate }: {
               border: dark ? "1px solid rgba(139,92,246,0.25)" : "1px solid rgba(139,92,246,0.15)",
             }}
           >
-            <p className="text-xs font-black mb-2" style={{ color: "#a855f7", fontFamily: "'Jua', sans-serif" }}>🛡️ 관리자 답변</p>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-xs font-black" style={{ color: "#a855f7", fontFamily: "'Jua', sans-serif" }}>🛡️ 관리자 답변</p>
+              {post.adminReplyAuthor && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-white bg-gradient-to-r from-purple-500 to-indigo-500 shadow-sm flex items-center gap-1">
+                  <span className="bg-white/20 px-1 rounded text-[8px] font-black tracking-wider">ADMIN</span>
+                  <span>{post.adminReplyAuthor}</span>
+                </span>
+              )}
+            </div>
             <p className="text-sm leading-relaxed" style={{ color: dark ? "#c4b5fd" : "#6d28d9", fontFamily: "'Noto Sans KR', sans-serif" }}>
               {post.adminReply}
             </p>
@@ -419,7 +428,7 @@ export function Board() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [page, setPage] = useState(1);
-  const PER_PAGE = 8;
+  const PER_PAGE = 15;
   const totalPages = Math.ceil(posts.length / PER_PAGE);
   const pagePosts = posts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 

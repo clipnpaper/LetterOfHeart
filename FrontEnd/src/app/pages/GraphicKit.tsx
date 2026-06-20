@@ -4,6 +4,18 @@ import { Mail, Star, Heart, Shield, MessageCircle, Sparkles, Lock, Users, Archiv
 import { useOutletContext, useNavigate } from "react-router";
 import imageSrc from "@/imports/image.png";
 import { fetchApi } from "../api";
+import "@/styles/cylinder.css";
+
+const adminImages = import.meta.glob<{ default: string }>('@/imports/adminProfile/*.{png,jpg,jpeg,webp}', { eager: true });
+const adminList = Object.entries(adminImages).map(([path, module]) => {
+  const fileName = path.split('/').pop() || '';
+  const name = fileName.replace(/\.[^/.]+$/, '');
+  return {
+    name,
+    src: module.default,
+  };
+});
+
 
 
 function Blob({ className }: { className: string }) {
@@ -414,6 +426,185 @@ function ActivityCard({ dark }: { dark: boolean }) {
   );
 }
 
+function AdminCylinder({ dark }: { dark: boolean }) {
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [speed, setSpeed] = useState(60);
+  const [perspective, setPerspective] = useState(1200);
+  const [rotateX, setRotateX] = useState(0);
+  const [manualY, setManualY] = useState(0);
+  const [radius, setRadius] = useState(400);
+
+  const handlePrev = () => {
+    setIsPlaying(false);
+    setManualY((prev) => prev - (360 / adminList.length));
+  };
+
+  const handleNext = () => {
+    setIsPlaying(false);
+    setManualY((prev) => prev + (360 / adminList.length));
+  };
+
+  return (
+    <div className="w-full flex flex-col items-center mt-20 max-w-4xl">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold tracking-tight mb-2" style={{ fontFamily: "'Jua', sans-serif", color: dark ? "#e9d5ff" : "#3b0764" }}>
+          트릭컬 이야기방에 고마운 분들 💖
+        </h2>
+        <p className="text-sm font-medium opacity-75" style={{ fontFamily: "'Noto Sans KR', sans-serif", color: dark ? "#a78bfa" : "#a855f7" }}>
+          이야기방을 언제나 빛내주시고 이끌어주시는 소중한 분들입니다.
+        </p>
+      </div>
+
+      <div
+        className="cylinder-viewport"
+        style={{
+          perspective: `${perspective}px`,
+        }}
+      >
+        <div className="cylinder-floor-glow" />
+
+        <div
+          className={`cylinder-container ${isPlaying ? 'cylinder-rotating' : ''}`}
+          style={{
+            transform: !isPlaying
+              ? `rotateX(${rotateX}deg) rotateY(${manualY}deg)`
+              : undefined,
+            ...({
+              '--speed': `${speed}s`,
+              '--play-state': isPlaying ? 'running' : 'paused',
+              '--rotate-x': `${rotateX}deg`,
+              '--manual-y': `${manualY}deg`,
+            } as React.CSSProperties)
+          }}
+        >
+          {adminList.map((item, idx) => {
+            const angle = idx * (360 / adminList.length);
+            return (
+              <div
+                key={item.name}
+                className="cylinder-item"
+                style={{
+                  ...({
+                    '--angle': `${angle}deg`,
+                    '--radius': `${radius}px`,
+                  } as React.CSSProperties)
+                }}
+              >
+                <div className="cylinder-item-wrapper">
+                  <img src={item.src} alt={item.name} className="cylinder-item-img" />
+                </div>
+                <div className="cylinder-item-label">
+                  {item.name}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Control Panel */}
+      <div
+        className="mt-8 flex flex-col items-center gap-4 p-5 rounded-3xl border w-full max-w-xl shadow-md transition-all duration-300"
+        style={{
+          background: dark ? "rgba(255, 255, 255, 0.03)" : "rgba(255, 255, 255, 0.65)",
+          borderColor: dark ? "rgba(167, 139, 250, 0.15)" : "rgba(168, 85, 247, 0.12)",
+        }}
+      >
+        {/* Buttons */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handlePrev}
+            className="px-4 py-1.5 rounded-xl font-bold text-xs shadow-sm border transition-all hover:opacity-80 active:scale-95 cursor-pointer"
+            style={{
+              background: dark ? "rgba(255,255,255,0.05)" : "#fff",
+              borderColor: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+              color: dark ? "#e9d5ff" : "#4c1d95",
+            }}
+          >
+            ◀ 이전
+          </button>
+
+          <button
+            onClick={() => setIsPlaying(!isPlaying)}
+            className="px-6 py-2 rounded-xl font-black text-xs shadow-md transition-all text-white bg-purple-600 hover:bg-purple-700 active:scale-95 cursor-pointer"
+            style={{
+              fontFamily: "'Jua', sans-serif",
+            }}
+          >
+            {isPlaying ? "⏸ 일시정지" : "▶ 자동회전"}
+          </button>
+
+          <button
+            onClick={handleNext}
+            className="px-4 py-1.5 rounded-xl font-bold text-xs shadow-sm border transition-all hover:opacity-80 active:scale-95 cursor-pointer"
+            style={{
+              background: dark ? "rgba(255,255,255,0.05)" : "#fff",
+              borderColor: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+              color: dark ? "#e9d5ff" : "#4c1d95",
+            }}
+          >
+            다음 ▶
+          </button>
+        </div>
+
+        {/* Sliders */}
+        <div className="grid grid-cols-2 gap-4 w-full text-xs font-semibold mt-2" style={{ color: dark ? "#c4b5fd" : "#4c1d95" }}>
+          <div className="flex flex-col gap-1">
+            <span>회전 속도 ({speed}초)</span>
+            <input
+              type="range"
+              min="10"
+              max="110"
+              value={speed}
+              onChange={(e) => setSpeed(Number(e.target.value))}
+              className="w-full accent-purple-500 cursor-pointer h-1 bg-purple-200 dark:bg-purple-950 rounded-lg appearance-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span>원근감 (Perspective)</span>
+            <input
+              type="range"
+              min="400"
+              max="2000"
+              value={perspective}
+              onChange={(e) => setPerspective(Number(e.target.value))}
+              className="w-full accent-purple-500 cursor-pointer h-1 bg-purple-200 dark:bg-purple-950 rounded-lg appearance-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span>상하 각도 ({rotateX}도)</span>
+            <input
+              type="range"
+              min="-30"
+              max="30"
+              value={rotateX}
+              onChange={(e) => {
+                setIsPlaying(false);
+                setRotateX(Number(e.target.value));
+              }}
+              className="w-full accent-purple-500 cursor-pointer h-1 bg-purple-200 dark:bg-purple-950 rounded-lg appearance-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span>실린더 반경 ({radius}px)</span>
+            <input
+              type="range"
+              min="200"
+              max="600"
+              value={radius}
+              onChange={(e) => setRadius(Number(e.target.value))}
+              className="w-full accent-purple-500 cursor-pointer h-1 bg-purple-200 dark:bg-purple-950 rounded-lg appearance-none"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function GraphicKit() {
   const { dark, nickname } = useOutletContext<{ dark: boolean; nickname: string }>();
   const labelColor = dark ? "#a78bfa" : "#a855f7";
@@ -449,9 +640,12 @@ export function GraphicKit() {
         </motion.div>
       </div>
 
+      <AdminCylinder dark={dark} />
+
       <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }} className="mt-12 text-xs" style={{ color: footerColor, fontFamily: "'Noto Sans KR', sans-serif" }}>
         트릭컬 이야기방 오픈카카오톡 : <a href="https://open.kakao.com/o/g1kO7zlg" style={{ color: footerColor }}>https://open.kakao.com/o/g1kO7zlg</a>
       </motion.p>
     </div>
   );
 }
+
