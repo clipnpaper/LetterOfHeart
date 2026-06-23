@@ -21,7 +21,7 @@
    - 자동 임시 저장 기능을 지원하여 작성 중 페이지가 이탈하더라도 유실되지 않습니다.
 
 4. **강력한 콘텐츠 및 사용자 제재 시스템 (관리 데스크)**
-   - 관리자 패스코드를 통해 진입하는 전용 포털(`http://localhost:5173/admin`)을 통해 부적절한 사용자 정지(Banned), 닉네임 강제 변경, 글 영구 삭제(Hard Delete), 공식 답변 댓글 작성을 지원합니다.
+   - 관리자 로그인(닉네임 + 코드)으로 진입하는 포털(`http://localhost:5173/admin`)을 통해... (도둑이야 / 10293847)
 
 ---
 
@@ -34,58 +34,126 @@
 - **Icons**: Lucide React
 - **Animation**: Motion (Framer Motion v12.x)
 
-### Back-End (서버)
-- **Runtime**: Node.js (Express v5.x)
-- **Database**: 파일 기반 경량 JSON Database (`data/*.json`)
-- **Environment**: Dotenv, CORS
-- **Process Manager**: Nodemon (개발용)
+### The App (Go + React)
+- **Runtime**: Go 1.26+ (single binary)
+- **Web UI**: React + Vite (source lives in `web/`)
+- **Database**: SQLite (embedded via modernc.org/sqlite)
+- **Serving**: Go server handles both API (`/api`) and frontend (SPA)
+- **Note**: One project for easy maintenance. Frontend is built into the Go binary or served by it.
 
 ---
 
 ## 📂 프로젝트 구조 (Directory Structure)
 
 ```bash
-LetterOfHeart/
-├── BackEnd/               # Express 백엔드 서버
-│   ├── data/              # JSON 파일 DB (users, posts, reactions, settings)
-│   ├── db.js              # 데이터베이스 매니저 모듈
-│   ├── server.js          # 백엔드 API 서버 진입점
-│   ├── package.json
-│   └── .env
-│
-├── FrontEnd/              # React/Vite 프론트엔드 클라이언트
-│   ├── src/
-│   │   ├── app/           # React 컴포넌트, 라우터, 페이지
-│   │   │   ├── pages/     # Admin, Board, GraphicKit, WritePost 페이지
-│   │   │   └── Root.tsx   # 최상단 글로벌 레이아웃 (테마 및 닉네임 공유)
-│   │   └── styles/        # CSS 디자인 시스템
-│   ├── package.json
-│   └── vite.config.ts
-│
-├── README.md              # 프로젝트 안내서
-├── requirements.txt       # 시스템 및 종속성 사양서
-└── .gitignore             # 깃 허브 업로드 제외 템플릿
+LetterOfHeart/                  # Modern Go full-stack app
+├── cmd/
+│   └── server/
+│       └── main.go             # Entry point + HTTP handlers
+├── internal/
+│   └── db/
+│       └── db.go               # SQLite + all data logic
+├── web/                        # React + Vite frontend sources
+│   └── src/ ...
+├── data/                       # SQLite DB (letterofheart.db)
+├── go.mod
+├── Makefile                    # make dev | make build
+├── dev.sh
+└── README.md
 ```
 
 ---
 
 ## ⚙️ 실행 방법 (Getting Started)
 
-### 1. 백엔드 서버 실행
-```bash
-cd BackEnd
-npm install
-npm run dev
-```
-> 백엔드 서버는 `http://localhost:5000`에서 대기하며 API 엔드포인트들을 노출합니다.
+### 1. Run Backend + Frontend on ONE single URL
 
-### 2. 프론트엔드 실행
+The project is now set up so you only need to visit **one address** in the browser.
+
+#### Development mode (recommended)
+* **macOS / Linux**:
+  ```bash
+  make dev
+  # or
+  ./dev.sh
+  ```
+* **Windows (PowerShell)**:
+  ```powershell
+  # Go 컴파일러 설치가 필요합니다. (설치: winget install GoLang.Go)
+  # Bash 환경(Git Bash 등)이 없을 경우 터미널 창을 각각 열어 다음 명령을 실행합니다:
+  
+  # 터미널 1 (Go 백엔드 실행)
+  go run ./cmd/server
+  
+  # 터미널 2 (Vite 프론트엔드 실행)
+  cd web
+  npm run dev
+  ```
+
+- Visit: **http://localhost:5173**
+- Vite automatically forwards all `/api` calls to the Go backend (same-origin, no CORS)
+- You get fast hot-reload for the React frontend
+
+#### Single binary (everything from one Go process)
+* **macOS / Linux**:
+  ```bash
+  make build
+  ./letterofheart
+  ```
+* **Windows (PowerShell)**:
+  ```powershell
+  # 1. 빌드 스크립트 실행 (권한 우회 포함)
+  Set-ExecutionPolicy -Scope Process Bypass
+  .\build.ps1
+  
+  # 2. 빌드된 바이너리 실행
+  .\letterofheart.exe
+  ```
+→ Visit **http://localhost:5000**
+
+### 2. Install dependencies (first time)
 ```bash
-cd FrontEnd
-npm install
-npm run dev
+cd web && npm install   # or pnpm install
 ```
-> 프론트엔드는 `http://localhost:5173` 브라우저 환경에서 로컬 테스트를 진행할 수 있습니다.
+
+### 3. Admin access
+> Admin login: 닉네임 + 코드 (예: 도둑이야 / 10293847)
+> 첫 관리자 계정은 시드되어 있습니다. Backend verifies via /api/admin/login.
+
+### 4. Other useful commands
+* **macOS / Linux**:
+  ```bash
+  make dev          # dev on http://localhost:5173 (one URL)
+  make build        # build full single binary (./letterofheart)
+  make install      # install UI deps
+  make clean
+  ```
+* **Windows (PowerShell)**:
+  ```powershell
+  # 빌드
+  .\build.ps1
+  
+  # 청소 (Clean)
+  Remove-Item -Recurse -Force web/dist
+  Remove-Item -Force letterofheart.exe
+  ```
+
+## 🗄️ 데이터베이스 관리 (Database Administration)
+
+SQLite 데이터베이스(`data/letterofheart.db`)를 웹 브라우저에서 편리하게 조회하고 관리할 수 있는 도구를 지원합니다.
+
+* **macOS / Linux**:
+  ```bash
+  pip install sqlite-web
+  sqlite-web data/letterofheart.db --port 8200
+  ```
+* **Windows (PowerShell)**:
+  ```powershell
+  # 제공된 데이터베이스 관리 스크립트 실행 (필요한 패키지를 자동 설치하고 실행합니다.)
+  Set-ExecutionPolicy -Scope Process Bypass
+  .\db-admin.ps1
+  ```
+→ 실행 후 브라우저에서 **http://localhost:8200**으로 접속하여 테이블 데이터 조회, 추가, 삭제, SQL 쿼리 작성을 수행할 수 있습니다.
 
 ---
 
@@ -94,12 +162,13 @@ npm run dev
 프로젝트 루트에 생성된 `.gitignore` 템플릿 파일은 깃허브 업로드 시 민감 정보 및 불필요한 캐시 에셋이 올라가는 것을 차단합니다. 주요 필터링 항목은 다음과 같습니다:
 
 - `node_modules/`: 의존성 패키지 폴더 제외 (보안 및 용량 확보)
-- `FrontEnd/dist/`: 빌드 압축 번들 제외
-- `BackEnd/.env`: 관리자 패스코드나 API 포트 번호 등 환경 변수 파일 유출 방지
-- `BackEnd/data/*.json`: 사용자 정보(`users.json`), 게시글 리스트(`posts.json`), 리액션 이력(`reactions.json`)과 같이 **동적으로 갱신되는 로컬 DB 파일** 업로드 방지 (단, 닉네임 변수 풀을 담고 있는 `settings.json`은 보존하여 기본값을 유지하도록 설정)
+- `web/dist/`: build output (embedded into Go binary)
+- `.env`: optional environment file
+- `data/*.db*`: local SQLite database
+
 
 # 비밀번호 관리
 
-- 관리자 비밀번호는 방장에게 여쭤서 알아오세요
+- 관리자 로그인: 닉네임 + 코드 (도둑이야 / 10293847)
 - 관리자 포털 주소: http://localhost:5173/admin
-- 부방장인 관리자의 아이디를 받을 경우, users.json의 해당 아이디의 role을 admin으로 수동으로 바꿔주시길 바랍니다. 또한 닉네임을 변경해주고 싶은 대상에게 닉네임을 바꿔줄 수 있습니다.
+- 관리자 닉네임은 게시물 작성 및 댓글(답변) 시 표시됩니다.

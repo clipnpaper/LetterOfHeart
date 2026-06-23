@@ -1,0 +1,4 @@
+🔨 Building Go binary (embed web UI)...
+internal/db/db.go:14:2: missing go.sum entry for module providing package golang.org/x/crypto/bcrypt (imported by letterofheart/internal/db); to add:
+        go get letterofheart/internal/db
+make: *** [Makefile:28: build] Error 1
