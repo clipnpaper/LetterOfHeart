@@ -29,8 +29,14 @@ if (cfg.description) {
   tags.push(`<meta name="twitter:description" content="${escapeAttr(cfg.description)}" />`);
 }
 if (cfg.image) {
-  tags.push(`<meta property="og:image" content="${escapeAttr(cfg.image)}" />`);
-  tags.push(`<meta name="twitter:image" content="${escapeAttr(cfg.image)}" />`);
+  // If a relative image path is provided (starts with '/'), and a url is present,
+  // turn it into an absolute URL so crawlers (Kakao, Twitter) can fetch it.
+  let imageVal = cfg.image;
+  if (typeof imageVal === 'string' && imageVal.startsWith('/') && cfg.url) {
+    imageVal = cfg.url.replace(/\/$/, '') + imageVal;
+  }
+  tags.push(`<meta property="og:image" content="${escapeAttr(imageVal)}" />`);
+  tags.push(`<meta name="twitter:image" content="${escapeAttr(imageVal)}" />`);
   tags.push(`<meta name="twitter:card" content="summary_large_image" />`);
 }
 if (cfg.url) {
@@ -48,6 +54,7 @@ const legacyMarker = '<!--KAKAO_META-->';
 const block = `${startMarker}\n  ${inner}\n  ${endMarker}`;
 
 if (html.includes(startMarker) && html.includes(endMarker)) {
+
   // replace between markers
   const re = new RegExp(`${startMarker}[\s\S]*?${endMarker}`,'m');
   html = html.replace(re, block);

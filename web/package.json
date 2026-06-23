@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "prebuild": "node scripts/install-thumbnail.js && node scripts/inject-meta.js",
+    "postbuild": "node scripts/install-thumbnail.js",
     "build": "vite build",
     "dev": "vite"
   },

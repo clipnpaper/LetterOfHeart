@@ -28,3 +28,11 @@ ensureDir(uploadsDir);
 const dest = path.join(uploadsDir, 'kakao-thumbnail.png');
 fs.copyFileSync(src, dest);
 console.log(`Copied thumbnail from ${src} to ${dest}`);
+
+// Also copy into web/dist if a built frontend exists (helps reverse proxies that serve static files)
+const distIndex = path.join(webDir, 'dist', 'index.html');
+const distThumb = path.join(webDir, 'dist', 'thumbnail.png');
+if (fs.existsSync(distIndex)) {
+  fs.copyFileSync(src, distThumb);
+  console.log(`Also copied thumbnail into built frontend: ${distThumb}`);
+}
