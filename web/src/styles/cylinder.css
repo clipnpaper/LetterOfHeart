@@ -1,0 +1,130 @@
+/* 3D Cylinder Styles */
+
+.cylinder-viewport {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+}
+
+.cylinder-container {
+  width: 150px;
+  height: 150px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.1s linear;
+}
+
+/* When auto-rotating */
+.cylinder-rotating {
+  animation: spin-cylinder var(--speed, 20s) linear infinite;
+  animation-play-state: var(--play-state, running);
+}
+
+@keyframes spin-cylinder {
+  from {
+    transform: rotateX(var(--rotate-x, -6deg)) rotateY(0deg);
+  }
+  to {
+    transform: rotateX(var(--rotate-x, -6deg)) rotateY(360deg);
+  }
+}
+
+.cylinder-item {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  left: 15px;
+  top: 15px;
+  transform-style: preserve-3d;
+  transform: rotateY(var(--angle)) translateZ(var(--radius));
+  backface-visibility: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cylinder-item-wrapper {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(4px);
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
+              border-color 0.4s, 
+              box-shadow 0.4s;
+  cursor: pointer;
+}
+
+.cylinder-item-wrapper:hover {
+  transform: scale(1.2) translateY(-5px);
+  border-color: rgba(167, 139, 250, 0.95);
+  box-shadow: 0 15px 35px rgba(167, 139, 250, 0.4), 
+              0 0 20px rgba(167, 139, 250, 0.6),
+              inset 0 0 20px rgba(167, 139, 250, 0.3);
+}
+
+.cylinder-item-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.cylinder-item-label {
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.85);
+  background: rgba(15, 10, 30, 0.88);
+  color: #f3e8ff;
+  padding: 3px 9px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  font-family: 'Noto Sans KR', sans-serif;
+  z-index: 10;
+}
+
+.cylinder-item:hover .cylinder-item-label {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* Floor shadow / glow */
+.cylinder-floor-glow {
+  position: absolute;
+  width: 500px;
+  height: 120px;
+  background: radial-gradient(ellipse at center, rgba(167, 139, 250, 0.16) 0%, rgba(167, 139, 250, 0) 70%);
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) rotateX(90deg);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Dark mode variations if needed */
+.dark .cylinder-item-wrapper {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark .cylinder-item-label {
+  background: rgba(10, 6, 20, 0.92);
+  color: #f3e8ff;
+  border-color: rgba(167, 139, 250, 0.4);
+}
