@@ -223,6 +223,24 @@ export function Admin() {
       .catch(console.error);
   }
 
+  function handlePermanentDeleteUser(uuid: string, nickname: string) {
+    if (!window.confirm(`정말 "${nickname}" 유저를 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없으며 유저 정보가 데이터베이스에서 영구히 지워집니다.`)) {
+      return;
+    }
+
+    fetchApi(`/admin/users/${uuid}/permanent`, { method: "DELETE" })
+      .then(() => {
+        alert("유저가 성공적으로 영구 삭제되었습니다.");
+        if (selectedUserUuid === uuid) {
+          setSelectedUserUuid(null);
+        }
+        loadAllData();
+      })
+      .catch(err => {
+        alert(`유저 영구 삭제 실패: ${err.message}`);
+      });
+  }
+
   // Post tab actions
   function handleTogglePostDelete(postId: number, week: number) {
     fetchApi(`/posts/${postId}/delete`, {
@@ -346,7 +364,11 @@ export function Admin() {
   const filteredUsers = Object.values(users || {}).filter(u =>
     (u.nickname || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
     (u.uuid || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ).sort((a, b) => {
+    if (a.role === "admin" && b.role !== "admin") return 1;
+    if (a.role !== "admin" && b.role === "admin") return -1;
+    return a.nickname.localeCompare(b.nickname);
+  });
 
   const uniqueWeeks = Array.from(
     new Set((allPosts || []).map(p => p.week).filter(w => w !== undefined && w !== null))
@@ -354,7 +376,7 @@ export function Admin() {
 
   const filteredPosts = (allPosts || []).filter(p => {
     const matchesSearch = (p.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (p.author || "").toLowerCase().includes(searchQuery.toLowerCase());
+      (p.author || "").toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
 
     if (weekFilter !== "all") {
@@ -553,11 +575,16 @@ export function Admin() {
               { id: "reports", label: "신고 콘텐츠", desc: "접수된 신고 내역 모니터링", icon: <AlertTriangle size={16} /> },
               { id: "reactions", label: "추천/비추천 관리", desc: "리액션 로그 열람 및 취소", icon: <Heart size={16} /> },
               { id: "settings", label: "닉네임 풀 설정", desc: "사도 및 호칭 풀 관리", icon: <Layers size={16} /> },
+              { id: "updates", label: "업데이트 관리", desc: "트릭컬 업데이트 작성 및 관리", icon: <Edit2 size={16} /> },
               { id: "audit", label: "IP 감사 로그", desc: "게시/관리자 접근 IP 기록", icon: <ShieldAlert size={16} /> }
             ].map(t => (
               <button
                 key={t.id}
                 onClick={() => {
+                  if (t.id === "updates") {
+                    navigate("/admin/updates");
+                    return;
+                  }
                   setActiveTab(t.id as any);
                   setSearchQuery("");
                   setSelectedUserUuid(null);
@@ -796,23 +823,34 @@ export function Admin() {
                             </div>
 
                             <div className="flex items-center gap-1.5 ml-2" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={() => {
-                                  setEditingUuid(u.uuid);
-                                  setNewNickname(u.nickname);
-                                }}
-                                className="p-1.5 text-purple-400 hover:bg-purple-500/10 rounded-xl"
-                                title="닉네임 강제 변경"
-                              >
-                                <Edit2 size={13} />
-                              </button>
-                              <button
-                                onClick={() => handleToggleUserStatus(u.uuid)}
-                                className={`p-1.5 rounded-xl ${u.status === "active" ? "text-rose-400 hover:bg-rose-500/10" : "text-emerald-400 hover:bg-emerald-500/10"}`}
-                                title={u.status === "active" ? "이용 정지 제재" : "제재 해제"}
-                              >
-                                {u.status === "active" ? <UserX size={13} /> : <UserCheck size={13} />}
-                              </button>
+                              {u.role !== "admin" ? (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setEditingUuid(u.uuid);
+                                      setNewNickname(u.nickname);
+                                    }}
+                                    className="p-1.5 text-purple-400 hover:bg-purple-500/10 rounded-xl"
+                                    title="닉네임 강제 변경"
+                                  >
+                                    <Edit2 size={13} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleToggleUserStatus(u.uuid)}
+                                    className={`p-1.5 rounded-xl ${u.status === "active" ? "text-rose-400 hover:bg-rose-500/10" : "text-emerald-400 hover:bg-emerald-500/10"}`}
+                                    title={u.status === "active" ? "이용 정지 제재" : "제재 해제"}
+                                  >
+                                    {u.status === "active" ? <UserX size={13} /> : <UserCheck size={13} />}
+                                  </button>
+                                  <button
+                                    onClick={() => handlePermanentDeleteUser(u.uuid, u.nickname)}
+                                    className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-xl"
+                                    title="회원 영구 삭제"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </>
+                              ) : null}
                               <ChevronRight size={14} className="opacity-50" />
                             </div>
                           </div>
@@ -1200,8 +1238,8 @@ export function Admin() {
 
               {/* TAB 4: SETTINGS (NICKNAME POOLS) */}
               {activeTab === "settings" && (
-                <motion.div 
-                  key="tab-settings" 
+                <motion.div
+                  key="tab-settings"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
@@ -1271,8 +1309,8 @@ export function Admin() {
 
               {/* TAB 5: AUDIT / IP LOGS */}
               {activeTab === "audit" && (
-                <motion.div 
-                  key="tab-audit" 
+                <motion.div
+                  key="tab-audit"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
@@ -1287,7 +1325,7 @@ export function Admin() {
                     </p>
                     <button
                       onClick={() => {
-                        fetchApi("/admin/audit-logs").then((d: any[]) => setAuditLogs(d || [])).catch(() => {});
+                        fetchApi("/admin/audit-logs").then((d: any[]) => setAuditLogs(d || [])).catch(() => { });
                       }}
                       className="self-start mt-1 px-3 py-1 text-[10px] rounded border opacity-70 hover:opacity-100"
                       style={{ borderColor }}
@@ -1314,8 +1352,8 @@ export function Admin() {
                   <div className="rounded-2xl border" style={{ borderColor, background: cardBg }}>
                     <div className="overflow-auto p-3" style={{ maxHeight: "520px" }}>
                       {(() => {
-                        const adminLogs = auditLogs.filter((log: any) => 
-                          log.action.startsWith('admin') || 
+                        const adminLogs = auditLogs.filter((log: any) =>
+                          log.action.startsWith('admin') ||
                           (users[log.userUuid] && users[log.userUuid].role === 'admin')
                         );
                         const displayedLogs = auditView === 'admins' ? adminLogs : auditLogs;

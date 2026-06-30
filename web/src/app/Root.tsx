@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { Sun, Moon, Mail, LayoutList, User, EyeOff, Menu, X } from "lucide-react";
 import { fetchApi } from "./api";
+import { GlitchText } from "./components/GlitchText";
 
 export function Root() {
   const [dark, setDark] = useState<boolean>(() => {
@@ -13,7 +14,9 @@ export function Root() {
   const location = useLocation();
   const isBoard = location.pathname.startsWith("/board");
   const isAdmin = location.pathname.startsWith("/admin");
-  const isGraphicKit = !isBoard && !isAdmin;
+  const isUpdates = location.pathname.startsWith("/updates");
+  const isApostlesTest = location.pathname.startsWith("/test-apostles");
+  const isGraphicKit = !isBoard && !isAdmin && !isUpdates && !isApostlesTest;
 
   const toggleDark = () => {
     setDark((prev) => {
@@ -28,6 +31,18 @@ export function Root() {
   const [role, setRole] = useState("");
   const [incognito, setIncognito] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [currentWeek, setCurrentWeek] = useState<number>(1);
+
+  useEffect(() => {
+    fetchApi("/current-week")
+      .then((res: any) => {
+        if (res.currentWeek) {
+          setCurrentWeek(res.currentWeek);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
 
   useEffect(() => {
     setMenuOpen(false); // Close menu on navigation
@@ -163,6 +178,19 @@ export function Root() {
             편지함 게시판
           </button>
           <button
+            onClick={() => navigate("/updates")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold transition-all"
+            style={{
+              background: isUpdates
+                ? "linear-gradient(90deg,#a855f7,#ec4899)"
+                : "transparent",
+              color: isUpdates ? "#fff" : dark ? "#a78bfa" : "#7c3aed",
+              fontFamily: "'Noto Sans KR', sans-serif",
+            }}
+          >
+            업데이트 요약
+          </button>
+          <button
             onClick={() => navigate("/admin")}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold transition-all"
             style={{
@@ -174,6 +202,19 @@ export function Root() {
             }}
           >
             관리자
+          </button>
+          <button
+            onClick={() => navigate("/test-apostles")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold transition-all"
+            style={{
+              background: isApostlesTest
+                ? "linear-gradient(90deg,#a855f7,#ec4899)"
+                : "transparent",
+              color: isApostlesTest ? "#fff" : dark ? "#a78bfa" : "#7c3aed",
+              fontFamily: "'Noto Sans KR', sans-serif",
+            }}
+          >
+            사도 테스트
           </button>
 
           {/* User profile badge */}
@@ -193,7 +234,7 @@ export function Root() {
             }}
           >
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span style={{display: 'inline-block', maxWidth: '360px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle'}}>{nickname}</span>
+            <span style={{display: 'inline-block', maxWidth: '360px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle'}}><GlitchText text={nickname} /></span>
           </div>
 
           {/* Dark mode toggle */}
@@ -351,6 +392,22 @@ export function Root() {
                 편지함 게시판
               </button>
 
+              {/* Updates Link */}
+              <button
+                onClick={() => { navigate("/updates"); setMenuOpen(false); }}
+                className="w-full flex items-center justify-center py-2.5 rounded-2xl text-sm font-bold transition-all shadow-sm"
+                style={{
+                  background: isUpdates
+                    ? "linear-gradient(90deg,#a855f7,#ec4899)"
+                    : dark ? "rgba(167,139,250,0.08)" : "rgba(168,85,247,0.05)",
+                  color: isUpdates ? "#fff" : dark ? "#a78bfa" : "#7c3aed",
+                  border: isUpdates ? "none" : dark ? "1px solid rgba(167,139,250,0.2)" : "1px solid rgba(168,85,247,0.15)",
+                  fontFamily: "'Noto Sans KR', sans-serif",
+                }}
+              >
+                업데이트 요약
+              </button>
+
               {/* Admin Link */}
               <button
                 onClick={() => { navigate("/admin"); setMenuOpen(false); }}
@@ -367,6 +424,22 @@ export function Root() {
                 관리자
               </button>
 
+              {/* Apostles Test Link */}
+              <button
+                onClick={() => { navigate("/test-apostles"); setMenuOpen(false); }}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold transition-all shadow-sm"
+                style={{
+                  background: isApostlesTest
+                    ? "linear-gradient(90deg,#a855f7,#ec4899)"
+                    : dark ? "rgba(167,139,250,0.08)" : "rgba(168,85,247,0.05)",
+                  color: isApostlesTest ? "#fff" : dark ? "#a78bfa" : "#7c3aed",
+                  border: isApostlesTest ? "none" : dark ? "1px solid rgba(167,139,250,0.2)" : "1px solid rgba(168,85,247,0.15)",
+                  fontFamily: "'Noto Sans KR', sans-serif",
+                }}
+              >
+                사도 테스트
+              </button>
+
               {/* User Profile Badge (Full Width on mobile) */}
               {nickname && (
                 <div
@@ -380,7 +453,7 @@ export function Root() {
                   }}
                 >
                   <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="truncate max-w-[280px]">{nickname}</span>
+                  <span className="truncate max-w-[280px]"><GlitchText text={nickname} /></span>
                 </div>
               )}
 
@@ -410,7 +483,7 @@ export function Root() {
 
       {/* Page content — offset for fixed nav */}
       <div className="pt-16">
-        <Outlet context={{ dark, nickname, userUuid, role, incognito }} />
+        <Outlet context={{ dark, nickname, userUuid, role, incognito, currentWeek }} />
       </div>
     </div>
   );

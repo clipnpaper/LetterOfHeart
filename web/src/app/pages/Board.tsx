@@ -13,7 +13,6 @@ const adminProfiles = Object.entries(adminImages).reduce((acc, [path, module]) =
 }, {} as Record<string, string>);
 
 // ─── Mock data ───────────────────────────────
-const CURRENT_WEEK = 1;
 
 type AdminReply = {
   id: number;
@@ -41,7 +40,7 @@ type Post = {
 
 
 
-const WEEKS = Array.from({ length: CURRENT_WEEK }, (_, i) => i + 1);
+
 
 // ─── Sub-components ───────────────────────────
 function WeekTab({ week, active, archived, dark, onClick }: {
@@ -177,6 +176,7 @@ function renderContent(content: string, dark: boolean) {
                     <img
                       src={block.value}
                       alt="첨부 미디어"
+                      referrerPolicy="no-referrer"
                       onError={(e) => {
                         (e.target as HTMLElement).style.display = 'none';
                       }}
@@ -231,8 +231,28 @@ function renderContent(content: string, dark: boolean) {
   );
 }
 
-function PostDetail({ post, dark, isArchived, activeWeek, onBack, onUpdate }: {
-  post: Post; dark: boolean; isArchived: boolean; activeWeek: number; onBack: () => void; onUpdate: (p: Post) => void;
+function PostDetail({
+  post,
+  dark,
+  isArchived,
+  activeWeek,
+  role,
+  userUuid,
+  nickname,
+  incognito,
+  onBack,
+  onUpdate
+}: {
+  post: Post;
+  dark: boolean;
+  isArchived: boolean;
+  activeWeek: number;
+  role: string;
+  userUuid: string;
+  nickname: string;
+  incognito: boolean;
+  onBack: () => void;
+  onUpdate: (p: Post) => void;
 }) {
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
@@ -242,6 +262,52 @@ function PostDetail({ post, dark, isArchived, activeWeek, onBack, onUpdate }: {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+  const [newReply, setNewReply] = useState("");
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+
+  function handleSubmitReply() {
+    if (!newReply.trim()) return;
+    setIsSubmittingReply(true);
+    fetchApi(`/posts/${post.id}/admin-reply`, {
+      method: "POST",
+      body: JSON.stringify({
+        adminReply: newReply.trim(),
+        userUuid,
+        incognito: false,
+        authorNickname: nickname
+      })
+    })
+      .then((updatedPost: Post) => {
+        setNewReply("");
+        if (onUpdate) {
+          onUpdate(updatedPost);
+        }
+      })
+      .catch((err: any) => {
+        alert(err.message || "답변 등록 중 오류가 발생했습니다.");
+      })
+      .finally(() => {
+        setIsSubmittingReply(false);
+      });
+  }
+
+  function handleDeleteReply(replyId: number) {
+    if (!window.confirm("정말로 이 답변을 삭제하시겠습니까?")) return;
+    fetchApi(`/admin/replies/${replyId}`, {
+      method: "DELETE"
+    })
+      .then(() => {
+        const updatedReplies = post.adminReplies?.filter(r => r.id !== replyId) || [];
+        const updatedPost = { ...post, adminReplies: updatedReplies };
+        if (onUpdate) {
+          onUpdate(updatedPost);
+        }
+      })
+      .catch((err: any) => {
+        alert(err.message || "답변 삭제 중 오류가 발생했습니다.");
+      });
+  }
 
   const reportReasons = [
     "스팸 및 홍보",
@@ -510,7 +576,18 @@ function PostDetail({ post, dark, isArchived, activeWeek, onBack, onUpdate }: {
                           <span>{reply.authorNickname}</span>
                         </span>
                       </div>
-                      <span className="text-[9px] opacity-40 font-mono shrink-0 sm:ml-auto">{reply.createdAt}</span>
+                      <div className="flex items-center gap-2 sm:ml-auto shrink-0">
+                        <span className="text-[9px] opacity-40 font-mono">{reply.createdAt}</span>
+                        {role === "admin" && (
+                          <button
+                            onClick={() => handleDeleteReply(reply.id)}
+                            className="text-[10px] font-bold transition-colors hover:text-rose-500 cursor-pointer"
+                            style={{ color: dark ? "#f87171" : "#e11d48" }}
+                          >
+                            삭제
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <p className="text-sm leading-relaxed" style={{ color: dark ? "#c4b5fd" : "#6d28d9", fontFamily: "'Noto Sans KR', sans-serif" }}>
                       {reply.content}
@@ -519,6 +596,82 @@ function PostDetail({ post, dark, isArchived, activeWeek, onBack, onUpdate }: {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Admin reply input section */}
+        {role === "admin" && (
+          <div
+            className="mt-6 p-4 sm:p-6 rounded-2xl flex flex-col gap-4 animate-fade-in"
+            style={{
+              background: dark ? "rgba(139,92,246,0.06)" : "rgba(139,92,246,0.03)",
+              border: dark ? "1px dashed rgba(139,92,246,0.2)" : "1px dashed rgba(139,92,246,0.15)",
+            }}
+          >
+            {/* Header info */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border" style={{ borderColor: dark ? "rgba(167,139,250,0.3)" : "rgba(139,92,246,0.2)" }}>
+                  {adminProfiles[nickname] ? (
+                    <img src={adminProfiles[nickname]} alt={nickname} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-purple-500/10 text-purple-400">
+                      <Users size={14} />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold" style={{ color: dark ? "#e9d5ff" : "#2d1b4e" }}>{nickname}</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-black shadow-sm">ADMIN</span>
+                </div>
+              </div>
+              
+              {incognito && (
+                <div className="flex items-center gap-1 text-[11px] text-rose-500 font-bold animate-pulse">
+                  <AlertTriangle size={12} /> 익명 모드 사용 중
+                </div>
+              )}
+            </div>
+
+            {/* Input area */}
+            <div className="flex flex-col gap-2">
+              <textarea
+                value={newReply}
+                onChange={(e) => setNewReply(e.target.value)}
+                placeholder={
+                  incognito
+                    ? "익명 모드에서는 관리자 답변을 작성할 수 없습니다. 상단 내비바에서 익명 모드를 해제해 주세요."
+                    : "게시글에 대한 공식 관리자 답변(댓글)을 남겨주세요..."
+                }
+                disabled={incognito || isSubmittingReply}
+                rows={3}
+                className="w-full p-3.5 rounded-xl text-sm focus:outline-none resize-none transition-all"
+                style={{
+                  background: dark ? "rgba(10,6,20,0.4)" : "#fff",
+                  border: dark ? "1px solid rgba(167,139,250,0.15)" : "1px solid rgba(168,85,247,0.15)",
+                  color: dark ? "#e9d5ff" : "#3b0764",
+                  fontFamily: "'Noto Sans KR', sans-serif",
+                }}
+              />
+
+              <div className="flex justify-between items-center text-xs opacity-60">
+                <span style={{ color: dark ? "#c4b5fd" : "#4c1d95" }}>
+                  {!incognito && `${newReply.length}자 입력됨`}
+                </span>
+                <motion.button
+                  onClick={handleSubmitReply}
+                  disabled={incognito || isSubmittingReply || !newReply.trim()}
+                  whileHover={incognito || isSubmittingReply || !newReply.trim() ? {} : { scale: 1.03 }}
+                  whileTap={incognito || isSubmittingReply || !newReply.trim() ? {} : { scale: 0.97 }}
+                  className="px-5 py-2 rounded-xl text-white font-bold transition-all shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    background: "linear-gradient(90deg,#a855f7,#ec4899)",
+                  }}
+                >
+                  {isSubmittingReply ? "등록 중..." : "답변 등록"}
+                </motion.button>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -599,14 +752,15 @@ function PostDetail({ post, dark, isArchived, activeWeek, onBack, onUpdate }: {
 
 // ─── Main Board page ──────────────────────────
 export function Board() {
-  const { dark } = useOutletContext<{ dark: boolean }>();
+  const { dark, nickname, userUuid, role, incognito, currentWeek = 1 } = useOutletContext<{ dark: boolean; nickname: string; userUuid: string; role: string; incognito: boolean; currentWeek?: number }>();
   const { week: weekParam } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const postIdParam = searchParams.get("post");
 
-  const activeWeek = weekParam ? parseInt(weekParam, 10) : CURRENT_WEEK;
-  const isArchived = activeWeek < CURRENT_WEEK;
+  const activeWeek = weekParam ? parseInt(weekParam, 10) : currentWeek;
+  const isArchived = activeWeek < currentWeek;
+  const WEEKS = Array.from({ length: currentWeek }, (_, i) => i + 1);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -665,7 +819,7 @@ export function Board() {
     setSearchParams({});
     setPage(1);
     setSortBy("latest");
-    navigate(w === CURRENT_WEEK ? "/board" : `/board/${w}`);
+    navigate(w === currentWeek ? "/board" : `/board/${w}`);
   }
 
   const labelColor = dark ? "#a78bfa" : "#a855f7";
@@ -697,7 +851,7 @@ export function Board() {
               key={w}
               week={w}
               active={w === activeWeek}
-              archived={w < CURRENT_WEEK}
+              archived={w < currentWeek}
               dark={dark}
               onClick={() => goWeek(w)}
             />
@@ -751,6 +905,10 @@ export function Board() {
               dark={dark}
               isArchived={isArchived}
               activeWeek={activeWeek}
+              role={role}
+              userUuid={userUuid}
+              nickname={nickname}
+              incognito={incognito}
               onBack={() => {
                 setSearchParams({});
                 loadPosts();

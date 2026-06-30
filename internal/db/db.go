@@ -84,6 +84,86 @@ type Reaction struct {
 	Date         string `json:"date"`
 }
 
+type TooltipEntry struct {
+	Keyword string `json:"keyword"`
+	Tip     string `json:"tip"`
+}
+
+type SkillInfo struct {
+	Name     string `json:"name"`
+	Desc     string `json:"desc"`
+	ImageURL string `json:"imageUrl,omitempty"`
+}
+
+type CloneRotation struct {
+	Stages string   `json:"stages"`
+	Before []string `json:"before"`
+	After  []string `json:"after"`
+}
+
+type ShortcutEntry struct {
+	Label string `json:"label"`
+	URL   string `json:"url"`
+}
+
+type PvpGroupRule struct {
+	Period    string `json:"period"`
+	GroupName string `json:"groupName"`
+	MinDays   int    `json:"minDays"`
+	MaxDays   int    `json:"maxDays"`
+}
+
+type ContentBlock struct {
+	Type             string          `json:"type"`
+	Content          string          `json:"content,omitempty"`
+	Tooltips         []TooltipEntry  `json:"tooltips,omitempty"`
+	Title            string          `json:"title,omitempty"`
+	Body             string          `json:"body,omitempty"`
+	Label            string          `json:"label,omitempty"`
+	URL              string          `json:"url,omitempty"`
+	Desc             string          `json:"desc,omitempty"`
+	Style            string          `json:"style,omitempty"`
+	Items            []string        `json:"items,omitempty"`
+	Name             string          `json:"name,omitempty"`
+	Rarity           string          `json:"rarity,omitempty"`
+	Personality      string          `json:"personality,omitempty"`
+	Race             string          `json:"race,omitempty"`
+	Role             string          `json:"role,omitempty"`
+	AttackType       string          `json:"attackType,omitempty"`
+	Position         string          `json:"position,omitempty"`
+	ImageURL         string          `json:"imageUrl,omitempty"`
+	NormalSkill      *SkillInfo      `json:"normalSkill,omitempty"`
+	LowSkill         *SkillInfo      `json:"lowSkill,omitempty"`
+	HighSkill        *SkillInfo      `json:"highSkill,omitempty"`
+	CostumeImageURL  string          `json:"costumeImageUrl,omitempty"`
+	ThemeTheaterURL  string          `json:"themeTheaterUrl,omitempty"`
+	PickupEventURL   string          `json:"pickupEventUrl,omitempty"`
+	Skills           string          `json:"skills,omitempty"`
+	Character        string          `json:"character,omitempty"`
+	Rotations        []CloneRotation `json:"rotations,omitempty"`
+	Shortcuts        []ShortcutEntry `json:"shortcuts,omitempty"`
+	StandardDate     string          `json:"standardDate,omitempty"`
+	SeasonPeriod     string          `json:"seasonPeriod,omitempty"`
+	SettlementTime   string          `json:"settlementTime,omitempty"`
+	VocationApostles string          `json:"vocationApostles,omitempty"`
+	GroupRules       []PvpGroupRule  `json:"groupRules,omitempty"`
+	BotInfo          string          `json:"botInfo,omitempty"`
+	EldainLimitDesc  string          `json:"eldainLimitDesc,omitempty"`
+	HighSkillDesc    string          `json:"highSkillDesc,omitempty"`
+}
+
+type UpdatePost struct {
+	ID        string         `json:"id"`
+	Week      int            `json:"week"`
+	Date      string         `json:"date"`
+	Category  string         `json:"category"`
+	Title     string         `json:"title"`
+	Summary   string         `json:"summary"`
+	Published bool           `json:"published"`
+	Blocks    []ContentBlock `json:"blocks"`
+}
+
+
 func InitDB() error {
 	if err := os.MkdirAll("data", 0755); err != nil {
 		return err
@@ -198,6 +278,17 @@ func createTables() error {
 		date TEXT NOT NULL,
 		FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
 		UNIQUE(post_id, reporter_uuid)
+	);
+
+	CREATE TABLE IF NOT EXISTS updates (
+		id TEXT PRIMARY KEY,
+		week INTEGER NOT NULL,
+		date TEXT NOT NULL,
+		category TEXT NOT NULL,
+		title TEXT NOT NULL,
+		summary TEXT NOT NULL,
+		published INTEGER NOT NULL DEFAULT 0,
+		blocks TEXT NOT NULL
 	);
 	`)
 	return err
@@ -482,6 +573,11 @@ func UpdateUserStatus(uuid string) (*User, error) {
 	}
 	u.Status = newStatus
 	return u, nil
+}
+
+func HardDeleteUser(uuid string) error {
+	_, err := DB.Exec(`DELETE FROM users WHERE uuid = ?`, uuid)
+	return err
 }
 
 // Post operations
@@ -1011,3 +1107,60 @@ func CreateReport(postID int64, reporterUUID, reason string) (*Report, error) {
 		Date:         date,
 	}, nil
 }
+
+func GetAllUpdates() ([]UpdatePost, error) {
+	rows, err := DB.Query(`SELECT id, week, date, category, title, summary, published, blocks FROM updates ORDER BY week DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []UpdatePost
+	for rows.Next() {
+		var p UpdatePost
+		var pubInt int
+		var blocksStr string
+		if err := rows.Scan(&p.ID, &p.Week, &p.Date, &p.Category, &p.Title, &p.Summary, &pubInt, &blocksStr); err != nil {
+			return nil, err
+		}
+		p.Published = pubInt == 1
+		if err := json.Unmarshal([]byte(blocksStr), &p.Blocks); err != nil {
+			p.Blocks = []ContentBlock{}
+		}
+		posts = append(posts, p)
+	}
+	if posts == nil {
+		posts = []UpdatePost{}
+	}
+	return posts, nil
+}
+
+func UpsertUpdate(p UpdatePost) error {
+	blocksBytes, err := json.Marshal(p.Blocks)
+	if err != nil {
+		return err
+	}
+	pubInt := 0
+	if p.Published {
+		pubInt = 1
+	}
+
+	_, err = DB.Exec(`INSERT INTO updates (id, week, date, category, title, summary, published, blocks)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			week = excluded.week,
+			date = excluded.date,
+			category = excluded.category,
+			title = excluded.title,
+			summary = excluded.summary,
+			published = excluded.published,
+			blocks = excluded.blocks`,
+		p.ID, p.Week, p.Date, p.Category, p.Title, p.Summary, pubInt, string(blocksBytes))
+	return err
+}
+
+func DeleteUpdate(id string) error {
+	_, err := DB.Exec(`DELETE FROM updates WHERE id = ?`, id)
+	return err
+}
+

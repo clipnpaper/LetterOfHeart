@@ -68,6 +68,7 @@ func main() {
 	// Users
 	r.Post("/api/users", createUserHandler)
 	r.Get("/api/generate-nickname", generateNicknameHandler)
+	r.Get("/api/current-week", currentWeekHandler)
 
 	// Posts
 	r.Get("/api/posts", listPostsHandler)
@@ -84,6 +85,9 @@ func main() {
 	// Settings
 	r.Get("/api/settings", getSettingsHandler)
 	r.Put("/api/settings", updateSettingsHandler)
+
+	// Updates
+	r.Get("/api/updates", listUpdatesHandler)
 
 	// Stats
 	r.Get("/api/stats", getStatsHandler)
@@ -116,6 +120,7 @@ func main() {
 			r.Get("/users", listUsersHandler)
 			r.Put("/users/{uuid}/nickname", updateNicknameHandler)
 			r.Put("/users/{uuid}/status", toggleUserStatusHandler)
+			r.Delete("/users/{uuid}/permanent", permanentDeleteUserHandler)
 			r.Get("/posts", listAllPostsHandler)
 			r.Delete("/posts/{id}/permanent", permanentDeletePostHandler)
 			r.Get("/reactions", listReactionsHandler)
@@ -124,6 +129,8 @@ func main() {
 			r.Post("/register", adminRegisterHandler)
 			r.Put("/change-code", adminChangeCodeHandler)
 			r.Get("/audit-logs", listAuditLogsHandler)
+			r.Post("/updates", upsertUpdateHandler)
+			r.Delete("/updates/{id}", deleteUpdateHandler)
 		})
 	})
 
@@ -587,32 +594,6 @@ func getStatsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Calculate T0 (earliest user created_at)
-	var T0 time.Time
-	hasUsers := false
-	for _, u := range users {
-		t, err := time.Parse(time.RFC3339, u.CreatedAt)
-		if err != nil {
-			continue
-		}
-		if !hasUsers || t.Before(T0) {
-			T0 = t
-			hasUsers = true
-		}
-	}
-	if !hasUsers {
-		T0 = time.Now()
-	}
-
-	// Helper to get week number for a given timestamp
-	getWeekForTime := func(t time.Time) int {
-		if t.Before(T0) {
-			return 1
-		}
-		days := t.Sub(T0).Hours() / 24
-		return int(days/7) + 1
-	}
-
 	// 2. Find maximum week number from posts, reactions, and user signups, at least 1
 	maxWeek := 1
 	for _, p := range posts {
@@ -713,12 +694,13 @@ func createPostHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Invalid JSON body.")
 		return
 	}
-	if body.Title == "" || body.Author == "" || body.AuthorUUID == "" || body.Content == "" || body.Week <= 0 {
+	if body.Title == "" || body.Author == "" || body.AuthorUUID == "" || body.Content == "" {
 		writeError(w, http.StatusBadRequest, "Missing required fields.")
 		return
 	}
 
-	post, err := db.CreatePost(body.Title, body.Author, body.AuthorUUID, body.Content, body.Week)
+	currentWeek := getCurrentWeek()
+	post, err := db.CreatePost(body.Title, body.Author, body.AuthorUUID, body.Content, currentWeek)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -730,7 +712,7 @@ func createPostHandler(w http.ResponseWriter, r *http.Request) {
 		logUUID = ""
 		logNick = ""
 	}
-	logAudit(r, "post_write", logUUID, logNick, fmt.Sprintf("post_id=%d title=%s week=%d", post.ID, body.Title, body.Week))
+	logAudit(r, "post_write", logUUID, logNick, fmt.Sprintf("post_id=%d title=%s week=%d", post.ID, body.Title, currentWeek))
 	writeJSON(w, http.StatusCreated, post)
 }
 
@@ -939,6 +921,13 @@ func addReactionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if the post's week is archived (i.e. older than current week)
+	currentWeek := getCurrentWeek()
+	if p.Week < currentWeek {
+		writeError(w, http.StatusBadRequest, "아카이브된 게시글에는 추천/비추천을 할 수 없습니다.")
+		return
+	}
+
 	// Get nickname
 	user, _ := db.GetUser(body.UserUUID)
 	userNick := "익명"
@@ -946,7 +935,7 @@ func addReactionHandler(w http.ResponseWriter, r *http.Request) {
 		userNick = user.Nickname
 	}
 
-	post, reactions, err := db.AddReaction(body.PostID, body.Week, body.UserUUID, userNick, body.Type)
+	post, reactions, err := db.AddReaction(body.PostID, p.Week, body.UserUUID, userNick, body.Type)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -1014,6 +1003,73 @@ func updateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, s)
+}
+
+// ─── Updates Handlers ──────────────────────────────────────────────────
+
+func listUpdatesHandler(w http.ResponseWriter, r *http.Request) {
+	// Check if this caller is an authorized admin
+	isAdmin := false
+	cookie, err := r.Cookie("loh_session_id")
+	if err == nil && cookie != nil {
+		user, err := db.GetAdminSession(cookie.Value)
+		if err == nil && user != nil && user.Role == "admin" {
+			isAdmin = true
+		}
+	}
+
+	updates, err := db.GetAllUpdates()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Filter out unpublished updates for non-admins
+	filtered := []db.UpdatePost{}
+	for _, u := range updates {
+		if u.Published || isAdmin {
+			filtered = append(filtered, u)
+		}
+	}
+
+	writeJSON(w, http.StatusOK, filtered)
+}
+
+func upsertUpdateHandler(w http.ResponseWriter, r *http.Request) {
+	var body db.UpdatePost
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid body.")
+		return
+	}
+
+	if body.ID == "" {
+		writeError(w, http.StatusBadRequest, "Update ID is required.")
+		return
+	}
+
+	if err := db.UpsertUpdate(body); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	logAudit(r, "admin_upsert_update", "", "", fmt.Sprintf("update_id=%s week=%d title=%s", body.ID, body.Week, body.Title))
+	writeJSON(w, http.StatusOK, body)
+}
+
+func deleteUpdateHandler(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "Missing update ID.")
+		return
+	}
+
+	if err := db.DeleteUpdate(id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	logAudit(r, "admin_delete_update", "", "", fmt.Sprintf("update_id=%s", id))
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // --- IP Audit Log Viewing (for frontend) ---
@@ -1153,18 +1209,19 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		".jpeg": true,
 		".png":  true,
 		".webp": true,
+		".gif":  true,
 		".svg":  true,
 		".jfif": true,
 		".mp4":  true,
 		".webm": true,
 	}
 	if !allowed[ext] {
-		writeError(w, http.StatusBadRequest, "허용되지 않는 파일 형식입니다. (지원 형식: 이미지 및 mp4/webm 비디오)")
+		writeError(w, http.StatusBadRequest, "허용되지 않는 파일 형식입니다. (지원 형식: 이미지, GIF 및 mp4/webm 비디오)")
 		return
 	}
 
 	// Double-check image file size limit of 6MB on server
-	isImage := ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp" || ext == ".svg" || ext == ".jfif"
+	isImage := ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp" || ext == ".gif" || ext == ".svg" || ext == ".jfif"
 	if isImage && header.Size > 6*1024*1024 {
 		writeError(w, http.StatusBadRequest, "이미지 크기는 최대 6MB까지 업로드 가능합니다.")
 		return
@@ -1195,5 +1252,58 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	publicURL := fmt.Sprintf("/api/uploads/%s", newFilename)
 	writeJSON(w, http.StatusOK, map[string]string{
 		"url": publicURL,
+	})
+}
+
+func permanentDeleteUserHandler(w http.ResponseWriter, r *http.Request) {
+	uuidParam := chi.URLParam(r, "uuid")
+
+	target, err := db.GetUser(uuidParam)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if target == nil {
+		writeError(w, http.StatusNotFound, "User not found.")
+		return
+	}
+	if target.Role == "admin" {
+		writeError(w, http.StatusForbidden, "Cannot delete an administrator account.")
+		return
+	}
+
+	if err := db.HardDeleteUser(uuidParam); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	logAudit(r, "admin_delete_user_permanent", "", "", fmt.Sprintf("target_uuid=%s target_nickname=%s", uuidParam, target.Nickname))
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// --- Week Helper Functions ---
+
+func getWeekForTime(t time.Time) int {
+	// Service started on 2026-06-22 00:00:00 KST
+	// which is 2026-06-21 15:00:00 UTC.
+	// Adjust the input time to KST (+9 hours) to work timezone-independently.
+	tKST := t.UTC().Add(9 * time.Hour)
+	startKST := time.Date(2026, 6, 22, 0, 0, 0, 0, time.UTC)
+
+	diff := tKST.Sub(startKST)
+	if diff < 0 {
+		return 1
+	}
+	days := diff.Hours() / 24
+	return int(days/7) + 1
+}
+
+func getCurrentWeek() int {
+	return getWeekForTime(time.Now())
+}
+
+func currentWeekHandler(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"currentWeek": getCurrentWeek(),
 	})
 }

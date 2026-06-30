@@ -4,6 +4,9 @@ import { GraphicKit } from "./pages/GraphicKit";
 import { Board } from "./pages/Board";
 import { WritePost } from "./pages/WritePost";
 import { Admin } from "./pages/Admin";
+import { Updates } from "./pages/Updates";
+import { AdminUpdates } from "./pages/AdminUpdates";
+import { ApostlesTest } from "./pages/ApostlesTest";
 
 export const router = createBrowserRouter([
   {
@@ -15,6 +18,9 @@ export const router = createBrowserRouter([
       { path: "board/write", Component: WritePost },
       { path: "board/:week", Component: Board },
       { path: "admin", Component: Admin },
+      { path: "updates", Component: Updates },
+      { path: "admin/updates", Component: AdminUpdates },
+      { path: "test-apostles", Component: ApostlesTest },
     ],
   },
 ]);

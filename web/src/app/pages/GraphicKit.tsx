@@ -4,6 +4,7 @@ import { Mail, Star, Heart, Shield, MessageCircle, Sparkles, Lock, Users, Archiv
 import { useOutletContext, useNavigate } from "react-router";
 import imageSrc from "@/imports/image.png";
 import { fetchApi } from "../api";
+import { GlitchText } from "../components/GlitchText";
 import "@/styles/cylinder.css";
 
 const adminImages = import.meta.glob<{ default: string }>('@/imports/adminProfile/*.{png,jpg,jpeg,webp}', { eager: true });
@@ -109,7 +110,7 @@ function StoryCard({ nickname }: { nickname: string }) {
           <motion.div animate={{ rotate: [0, 5, -5, 0] }} transition={{ duration: 4, repeat: Infinity }} className="text-4xl">📬</motion.div>
           <div>
             <p className="text-white/60 text-[9px] mb-0.5" style={{ fontFamily: "'Noto Sans KR', sans-serif" }}>당신의 이름은</p>
-            <p className="text-white text-base font-black truncate max-w-[220px]" style={{ fontFamily: "'Jua', sans-serif" }}>"{nickname || "익명 작가"}"</p>
+            <p className="text-white text-base font-black truncate max-w-[220px]" style={{ fontFamily: "'Jua', sans-serif" }}>"<GlitchText text={nickname || "익명 작가"} />"</p>
             <p className="text-white/60 text-[9px] mt-0.5" style={{ fontFamily: "'Noto Sans KR', sans-serif" }}>입니다</p>
           </div>
           <div className="w-12 h-0.5 bg-white/10 rounded-full" />

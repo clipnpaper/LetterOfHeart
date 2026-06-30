@@ -3,6 +3,7 @@ import { useOutletContext, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { Trash, ChevronUp, ChevronDown, Plus, Image, Youtube, Type, ChevronLeft, Sparkles, Save, Upload } from "lucide-react";
 import { fetchApi } from "../api";
+import { GlitchText } from "../components/GlitchText";
 
 type Block = {
   id: string;
@@ -66,7 +67,7 @@ function compressAndConvertToJpg(file: File): Promise<Blob> {
 }
 
 export function WritePost() {
-  const { dark, nickname, userUuid, incognito } = useOutletContext<{ dark: boolean; nickname: string; userUuid: string; incognito: boolean }>();
+  const { dark, nickname, userUuid, incognito, currentWeek = 1 } = useOutletContext<{ dark: boolean; nickname: string; userUuid: string; incognito: boolean; currentWeek?: number }>();
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -123,11 +124,12 @@ export function WritePost() {
 
   // 파일 업로드 및 압축 함수
   async function handleFileUpload(blockId: string, file: File) {
-    const isImage = /\.(png|jpe?g|webp|svg|jfif)$/i.test(file.name);
+    const isImage = /\.(png|jpe?g|webp|gif|svg|jfif)$/i.test(file.name);
+    const isGif = /\.gif$/i.test(file.name);
     const isVideo = /\.(mp4|webm)$/i.test(file.name);
 
     if (!isImage && !isVideo) {
-      setShowAlert({ show: true, message: "지원하지 않는 파일 형식입니다. 이미지(PNG, JPG, WEBP, SVG, JFIF) 또는 동영상(MP4, WEBM)을 업로드해주세요." });
+      setShowAlert({ show: true, message: "지원하지 않는 파일 형식입니다. 이미지(PNG, JPG, WEBP, GIF, SVG, JFIF) 또는 동영상(MP4, WEBM)을 업로드해주세요." });
       return;
     }
 
@@ -146,8 +148,8 @@ export function WritePost() {
       let uploadFile: Blob | File = file;
       let filename = file.name;
 
-      if (isImage) {
-        // Compress and convert to JPG
+      if (isImage && !isGif) {
+        // Compress and convert to JPG (but do not compress animated GIFs)
         const compressedBlob = await compressAndConvertToJpg(file);
         uploadFile = compressedBlob;
         const lastDot = file.name.lastIndexOf('.');
@@ -252,8 +254,6 @@ export function WritePost() {
     }
 
     // 로컬 스토리지 대신 백엔드 서버에 글 등록
-    const CURRENT_WEEK = 1; // Board.tsx와 맞춤
-
     fetchApi("/posts", {
       method: "POST",
       body: JSON.stringify({
@@ -261,7 +261,7 @@ export function WritePost() {
         author: nickname,
         authorUuid: userUuid,
         content: JSON.stringify(blocks),
-        week: CURRENT_WEEK,
+        week: currentWeek,
         incognito: !!incognito,
         authorNickname: nickname
       })
@@ -320,7 +320,7 @@ export function WritePost() {
               <Sparkles size={11} /> 익명 작가
             </span>
             <span style={{ color: dark ? "#e9d5ff" : "#4c1d95" }}>당신의 이름: </span>
-            <span className="font-extrabold" style={{ color: dark ? "#c084fc" : "#a855f7" }}>"{nickname}"</span>
+            <span className="font-extrabold" style={{ color: dark ? "#c084fc" : "#a855f7" }}>"<GlitchText text={nickname} />"</span>
           </div>
 
           {/* 제목 입력 */}
@@ -437,7 +437,7 @@ export function WritePost() {
                                 <input
                                   type="file"
                                   id={`file-upload-${block.id}`}
-                                  accept="image/png, image/jpeg, image/jpg, image/webp, image/svg+xml, image/jfif, video/mp4, video/webm"
+                                  accept="image/png, image/jpeg, image/jpg, image/webp, image/gif, image/svg+xml, image/jfif, video/mp4, video/webm"
                                   onChange={(e) => {
                                     const file = e.target.files?.[0];
                                     if (file) {
@@ -485,10 +485,10 @@ export function WritePost() {
                                         클릭 또는 파일 드래그로 업로드
                                       </p>
                                       <p className="text-xs mt-1.5" style={{ color: dark ? "#7c5c9a" : "#a78bfa" }}>
-                                        이미지 (PNG, JPG, WEBP, SVG, JFIF) 최대 6MB | 동영상 (MP4, WEBM)
+                                        이미지 (PNG, JPG, WEBP, GIF, SVG, JFIF) 최대 6MB | 동영상 (MP4, WEBM)
                                       </p>
                                       <p className="text-[10px] mt-0.5" style={{ color: dark ? "#6d5b8a" : "#c4b5fd" }}>
-                                        * 이미지는 저장 시 JPG 포맷으로 일괄 자동 압축됩니다.
+                                        * 이미지는 저장 시 JPG 포맷으로 일괄 자동 압축됩니다. (GIF는 제외)
                                       </p>
                                     </div>
                                   </label>
@@ -503,7 +503,7 @@ export function WritePost() {
                                   {/\.(mp4|webm)$/i.test(block.value) ? (
                                     <video src={block.value} controls className="max-h-[320px] object-contain rounded-2xl" />
                                   ) : (
-                                    <img src={block.value} alt="업로드된 미디어" className="max-h-[320px] object-contain rounded-2xl" />
+                                    <img src={block.value} alt="업로드된 미디어" className="max-h-[320px] object-contain rounded-2xl" referrerPolicy="no-referrer" />
                                   )}
                                 </div>
                                 <div className="flex justify-end">
