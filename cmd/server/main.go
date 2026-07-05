@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,8 +12,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"letterofheart/internal/db"
@@ -34,6 +37,11 @@ func main() {
 		log.Fatalf("failed to initialize database: %v", err)
 	}
 	defer db.DB.Close()
+
+	shutdownCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	db.StartAutoBackup(shutdownCtx, 5*time.Minute)
 
 	// Ensure uploads directory exists
 	if err := os.MkdirAll("./uploads", 0755); err != nil {
